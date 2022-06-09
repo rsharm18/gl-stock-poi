@@ -6,7 +6,7 @@ import yfinance as yf
 import time
 import random
 import datetime
-
+import pandas
 def isPOI(payload):
     fifty_two_week_high = payload['52WeekHigh']
     fifty_two_week_low = payload['52WeekLow']
@@ -33,8 +33,8 @@ print(isPOI(load))
 def put_to_stream(payload,stream_name="stock_price_stream"):
 
     # payload = {'stockid': 'MSFT', 'price': 273.1700134277344, 'timestamp': '2022-06-06T09:30:00.000000-0400', '52WeekHigh': 349.67, '52WeekLow': 246.44}
-    print("Payload : ",payload)
-    print(" stream_name ",stream_name)
+    # print("Payload : ",payload)
+    print("Sending ",payload," to stream ",stream_name)
     put_response = kinesis_client.put_record(
                         StreamName=stream_name,
                         Data=json.dumps(payload),
@@ -63,15 +63,16 @@ today = datetime.date.today()
 yesterday = datetime.date.today() - datetime.timedelta(1)
 
 # put_to_stream({})
-stocks_list = ['MSFT', 'MVIS', 'GOOG', 'SPOT', 'INO', 'OCGN', 'ABML', 'RLLCF', 'JNJ', 'PSFE']
-# stocks_list = ['MSFT', 'MVIS', 'GOOG']
+#stocks_list = ['MSFT', 'MVIS', 'GOOG', 'SPOT', 'INO', 'OCGN', 'ABML', 'RLLCF', 'JNJ', 'PSFE']
+stocks_list = ['MSFT']
 
 data_set = {}
-
+print('fetching data for stock set', stocks_list)
+stock_data = []
 for stock in stocks_list:
     # Example of pulling the data between 2 dates from yfinance API
     print('fetching {0}'.format(stock))
-    stock_data = []
+
     ## Add code to pull the data for the stocks specified in the doc
     data_dump = yf.download(stock, start=yesterday, end=today, interval='1h')
 
@@ -84,14 +85,12 @@ for stock in stocks_list:
         stock_data.append({
             'stockid': stock,
             'price': data['Close'],
-            'timestamp': index.strftime('%Y-%m-%dT%H:%M:%S.%f%z'),
+            'timestamp': index.strftime('%Y-%m-%d'),
             '52WeekHigh': ticker.info['fiftyTwoWeekHigh'],
             '52WeekLow': ticker.info['fiftyTwoWeekLow'],
         })
-        [put_to_stream(data) for data in stock_data]
-    # data_set[stock] = stock_data
-
-# print(stock_data)
-# read_from_stream()
+count = 10 if len(stock_data) > 10 else 5
+print('Data read successfully. \n data count  :', len(stock_data),"first ",count," rows ",stock_data[:count], '\n ==> Streaming data to kinesis stream now \n')
 
 ## Add your code here to push data records to Kinesis stream.
+[put_to_stream(data) for data in stock_data]

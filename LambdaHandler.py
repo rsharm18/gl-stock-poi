@@ -36,15 +36,19 @@ def lambda_handler(event, context):
     return 'Successfully processed {} records.'.format(len(event['Records']))
 
 def handle_poi_data(payload):
-    send_sns_notification(payload)
-    insert_POI_to_dynamodb(payload)
+    if not is_alert_raised(payload['stockid'],payload['timestamp']):
+        send_sns_notification(payload)
+        insert_POI_to_dynamodb(payload)
+    else:
+        print("Skip POI ",payload," as alert is already raised")
+
 
 def send_sns_notification(payload,topic_arn='arn:aws:sns:us-east-1:185138245721:stock-poi'):
     sns_client = boto3.client('sns')
     response = sns_client.publish(
         TopicArn=topic_arn,
         Subject='Stock - POI {0}'.format(payload['stockid']),
-        Message='POI stock received'
+        Message=json.dumps(payload)
     )
     print("SNS alert sent : ", response)
 
@@ -56,3 +60,14 @@ def insert_POI_to_dynamodb(payload,table_name='stock_poi'):
         Item=json.loads(json.dumps(payload), parse_float=Decimal)
     )
     print("Dynamodb record added" , response)
+
+def is_alert_raised(stockid, timestamp, table_name='stock_poi'):
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(table_name)
+    response = table.get_item(
+        Key={
+            'stockid': stockid,
+            'timestamp': timestamp
+        }
+    )
+    return 'Item' in response.keys()
