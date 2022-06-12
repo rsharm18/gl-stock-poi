@@ -21,7 +21,7 @@ def lambda_handler(event, context):
         payload = base64.b64decode(record['kinesis']['data']).decode('utf-8')
 
         payload_json = json.loads(payload)
-        if is_poi(payload_json) and payload_json['stockid']:
+        if is_poi(payload_json):
             print("POI payload: ", payload_json)
             handle_poi_data(payload_json)
         else:
